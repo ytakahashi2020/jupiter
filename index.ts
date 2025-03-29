@@ -74,9 +74,15 @@ const signature = await connection.sendRawTransaction(transactionBinary, {
   skipPreflight: true,
 });
 
+const latestBlockhash = await connection.getLatestBlockhash();
+
 const confirmation = await connection.confirmTransaction(
-  { signature },
-  "finalized"
+  {
+    signature,
+    blockhash: latestBlockhash.blockhash,
+    lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
+  },
+  "confirmed"
 );
 
 if (confirmation.value.err) {
@@ -88,9 +94,9 @@ if (confirmation.value.err) {
 } else
   console.log(`Transaction successful: https://solscan.io/tx/${signature}/`);
 
-// 最新のブロックハッシュを取得してトランザクションに設定
-const { blockhash } = await connection.getLatestBlockhash();
-transaction.message.recentBlockhash = blockhash;
+// // 最新のブロックハッシュを取得してトランザクションに設定
+// const { blockhash } = await connection.getLatestBlockhash();
+// transaction.message.recentBlockhash = blockhash;
 
 // トランザクションをシリアライズして送信
 const rawTransaction = transaction.serialize();
