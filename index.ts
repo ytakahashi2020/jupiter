@@ -67,26 +67,41 @@ const signature = await connection.sendRawTransaction(transaction.serialize(), {
   maxRetries: 2,
 });
 
+// 10秒待機する
+await new Promise((resolve) => setTimeout(resolve, 10000));
+
 // 最新のブロックハッシュを取得（確認用に必要）
 const latestBlockhash = await connection.getLatestBlockhash();
 
 // トランザクションの確認
-const confirmation = await connection.confirmTransaction(
-  {
-    signature,
-    blockhash: latestBlockhash.blockhash,
-    lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
-  },
-  "confirmed"
-);
+// const confirmation = await connection.confirmTransaction(
+//   {
+//     signature,
+//     blockhash: latestBlockhash.blockhash,
+//     lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
+//   },
+//   "confirmed"
+// );
 
-// 結果出力
-if (confirmation.value.err) {
-  throw new Error(
-    `Transaction failed: ${JSON.stringify(
-      confirmation.value.err
-    )}\nhttps://solscan.io/tx/${signature}/`
-  );
+// // 結果出力
+// if (confirmation.value.err) {
+//   throw new Error(
+//     `Transaction failed: ${JSON.stringify(
+//       confirmation.value.err
+//     )}\nhttps://solscan.io/tx/${signature}/`
+//   );
+// } else {
+//   console.log(`Transaction successful: https://solscan.io/tx/${signature}`);
+// }
+
+const status = await connection.getSignatureStatuses([signature]);
+const statusInfo = status.value[0];
+
+if (statusInfo) {
+  console.log("Confirmation Status:", statusInfo.confirmationStatus);
+  console.log(`https://solscan.io/tx/${signature}`);
+  console.log("Slot:", statusInfo.slot);
+  console.log("Error:", statusInfo.err);
 } else {
-  console.log(`Transaction successful: https://solscan.io/tx/${signature}`);
+  console.log("トランザクションが見つかりませんでした。");
 }
