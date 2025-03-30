@@ -4,14 +4,14 @@ import * as fs from "fs";
 import * as path from "path";
 
 // Solana ネットワークへの接続を設定
-const connection = <メインネットとの接続を行って>;
+const connection = new Connection("https://api.mainnet-beta.solana.com");
 
 // my-keypair.json ファイルのパスを設定
 const keypairPath = path.resolve(__dirname, "my-keypair.json");
 
 // キーペアをファイルから直接読み込む
 const keyData = JSON.parse(fs.readFileSync(keypairPath, "utf8"));
-const wallet = <この部分でキーペアを作成して>;
+const wallet = Keypair.fromSecretKey(Uint8Array.from(keyData));
 
 // スワップするトークンのミントアドレスと数量を設定
 const inputMint = "So11111111111111111111111111111111111111112"; // SOL のミントアドレス
@@ -22,7 +22,7 @@ const slippageBps = 100; // 1% のスリッページ
 // Quote API で見積もり取得
 const quoteResponse = await (
   await fetch(
-    `https://quote-api.jup.ag/v6/quote?inputMint=${＜引数①＞}&outputMint=${＜引数②＞}&amount=${＜引数③＞}&slippageBps=${＜引数④＞}`
+    `https://quote-api.jup.ag/v6/quote?inputMint=${inputMint}&outputMint=${outputMint}&amount=${amount}&slippageBps=${slippageBps}`
   )
 ).json();
 
@@ -32,16 +32,16 @@ const swapResponse = await (
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      ＜取得した見積もりを渡します。＞,
+      quoteResponse,
       userPublicKey: wallet.publicKey.toString(),
       wrapAndUnwrapSol: true,
       prioritizationFeeLamports: {
         priorityLevelWithMaxLamports: {
           maxLamports: 1000000,
           global: false,
-          ＜priorityLevelを"high"に設定して＞,
+          priorityLevel: "high",
           dynamicComputeUnitLimit: true,
-          dynamicSlippageをtrueに設定して＞,
+          dynamicSlippage: true,
           jitoTipLamports: 100000,
         },
       },
@@ -52,17 +52,17 @@ const swapResponse = await (
 // console.log("swapTransaction", swapResponse.swapTransaction);
 
 // トランザクションデータを復元
-const swapTransactionBuf = ＜Buffer形式にして＞(swapResponse.swapTransaction, "base64");
+const swapTransactionBuf = Buffer.from(swapResponse.swapTransaction, "base64");
 // console.log("swapTransactionBuf", swapTransactionBuf);
-const transaction = ＜VersionedTransactionにして＞(swapTransactionBuf);
+const transaction = VersionedTransaction.deserialize(swapTransactionBuf);
 // console.log("transaction before sign", transaction);
 
 // ウォレットで署名
-＜署名して＞
+transaction.sign([wallet]);
 // console.log("transaction after sign", transaction);
 
 // トランザクション送信
-const signature = await ＜トランザクションを送って＞(Uint8Array型にして, {
+const signature = await connection.sendRawTransaction(transaction.serialize(), {
   skipPreflight: true,
   maxRetries: 2,
 });
@@ -72,7 +72,7 @@ const signature = await ＜トランザクションを送って＞(Uint8Array型
 // 10秒待機する
 await new Promise((resolve) => setTimeout(resolve, 10000));
 
-const status = await ＜トランザクションを確認して＞([signature]);
+const status = await connection.getSignatureStatuses([signature]);
 const statusInfo = status.value[0];
 
 if (statusInfo) {
